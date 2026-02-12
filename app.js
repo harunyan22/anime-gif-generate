@@ -495,7 +495,7 @@ async function ensureGifEncoderReady() {
 
 async function resolveWorkerScriptUrl() {
   if (location.protocol !== 'file:') {
-    return GIF_WORKER_PRIMARY;
+    return GIF_WORKER_LOCAL;
   }
 
   if (state.workerBlobUrl) {
