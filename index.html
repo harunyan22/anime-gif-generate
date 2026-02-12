@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>アニメGIF並列メーカー</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #f5f7fb;
+        color: #1d1d1f;
+        line-height: 1.45;
+      }
+
+      .container {
+        max-width: 1080px;
+        margin: 0 auto;
+        display: grid;
+        gap: 16px;
+      }
+
+      .panel {
+        background: #fff;
+        border: 1px solid #dce3ef;
+        border-radius: 12px;
+        padding: 16px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 24px;
+      }
+
+      .sub {
+        margin: 0;
+        color: #4a5568;
+        font-size: 14px;
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      .controls.compact {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        font-size: 13px;
+        color: #2d3748;
+      }
+
+      input[type="number"],
+      input[type="text"],
+      input[type="color"],
+      input[type="file"],
+      select,
+      button {
+        width: 100%;
+        border: 1px solid #cbd5e0;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 14px;
+        background: #fff;
+      }
+
+      button {
+        border: 0;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        background: #93a5c9;
+        cursor: not-allowed;
+      }
+
+      .action-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      .status {
+        margin-top: 10px;
+        min-height: 22px;
+        font-size: 13px;
+        color: #2b6cb0;
+      }
+
+      .meta-list {
+        margin: 10px 0 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 6px;
+        font-size: 13px;
+      }
+
+      .meta-item {
+        border: 1px solid #d1d9e6;
+        border-radius: 8px;
+        padding: 8px;
+        background: #f8fafc;
+      }
+
+      .meta-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .drag-handle {
+        cursor: grab;
+        user-select: none;
+        color: #4a5568;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .offset-row {
+        margin-top: 8px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .offset-row label {
+        font-size: 12px;
+      }
+
+      .offset-row input[type="number"] {
+        padding: 6px 8px;
+      }
+
+      .preset-row {
+        margin-top: 10px;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+      }
+
+      details.option-box {
+        margin-top: 12px;
+        border: 1px solid #dce3ef;
+        border-radius: 10px;
+        padding: 10px;
+        background: #f8fafc;
+      }
+
+      details.option-box > summary {
+        cursor: pointer;
+        font-size: 13px;
+        color: #2d3748;
+        font-weight: 600;
+      }
+
+      .option-body {
+        margin-top: 10px;
+      }
+
+      .preset-row input,
+      .preset-row select,
+      .preset-row button {
+        width: 100%;
+      }
+
+      .preview-wrap {
+        overflow: auto;
+        border: 1px dashed #a0aec0;
+        border-radius: 8px;
+        background: #edf2f7;
+        padding: 12px;
+      }
+
+      .preview-tip {
+        margin: 0 0 8px;
+        font-size: 12px;
+        color: #4a5568;
+      }
+
+      canvas {
+        display: block;
+        max-width: 100%;
+        height: auto;
+      }
+
+      .download a {
+        display: inline-block;
+        margin-top: 10px;
+        text-decoration: none;
+        color: #1a202c;
+        background: #dbeafe;
+        border: 1px solid #93c5fd;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 14px;
+      }
+
+      @media (max-width: 900px) {
+        body {
+          padding: 14px;
+        }
+
+        .container {
+          gap: 12px;
+        }
+
+        .panel {
+          padding: 12px;
+        }
+
+        .controls,
+        .controls.compact {
+          grid-template-columns: 1fr;
+        }
+
+        .preset-row {
+          grid-template-columns: 1fr;
+        }
+
+        .action-row {
+          grid-template-columns: 1fr;
+          gap: 8px;
+        }
+
+        input[type="number"],
+        input[type="text"],
+        input[type="color"],
+        input[type="file"],
+        select,
+        button,
+        .download a {
+          min-height: 44px;
+          font-size: 16px;
+        }
+
+        .offset-row {
+          grid-template-columns: 1fr;
+        }
+
+        .preview-wrap {
+          padding: 8px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        h1 {
+          font-size: 20px;
+        }
+
+        .sub,
+        .preview-tip,
+        .status {
+          font-size: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <section class="panel">
+        <h1>アニメGIF並列メーカー</h1>
+        <p class="sub">複数のアニメGIFを並べて、1枚のアニメGIFとして出力します。</p>
+
+        <div class="controls compact">
+          <label>
+            GIFファイル（複数選択）
+            <input id="gifInput" type="file" accept="image/gif" multiple />
+          </label>
+
+          <label>
+            列数
+            <input id="columnsInput" type="number" min="1" max="30" value="5" />
+          </label>
+
+          <label>
+            間隔(px)
+            <input id="gapInput" type="number" min="0" max="100" value="0" />
+          </label>
+
+          <label>
+            透明背景
+            <input id="transparentBgInput" type="checkbox" checked />
+          </label>
+        </div>
+
+        <div class="action-row">
+          <button id="previewBtn" type="button">プレビュー更新</button>
+          <button id="generateBtn" type="button" disabled>GIFを生成</button>
+        </div>
+
+        <div id="status" class="status"></div>
+        <div id="download" class="download"></div>
+
+        <details class="option-box">
+          <summary>詳細オプション</summary>
+          <div class="option-body">
+            <div class="controls">
+              <label>
+                背景色
+                <input id="bgInput" type="color" value="#ffffff" />
+              </label>
+
+              <label>
+                固定キャンバスサイズ
+                <input id="fixedSizeInput" type="checkbox" />
+              </label>
+
+              <label>
+                出力幅(px)
+                <input id="canvasWidthInput" type="number" min="64" max="4096" value="1920" />
+              </label>
+
+              <label>
+                出力高(px)
+                <input id="canvasHeightInput" type="number" min="64" max="4096" value="1080" />
+              </label>
+
+              <label>
+                出力FPS
+                <input id="fpsInput" type="number" min="5" max="30" value="15" />
+              </label>
+            </div>
+
+            <div class="preset-row">
+              <input id="presetNameInput" type="text" placeholder="プリセット名" />
+              <button id="savePresetBtn" type="button">プリセット保存</button>
+              <select id="presetSelect">
+                <option value="">プリセットを選択</option>
+              </select>
+            </div>
+            <div class="preset-row" style="grid-template-columns: 1fr 1fr 1fr;">
+              <button id="loadPresetBtn" type="button">プリセット読込</button>
+              <button id="deletePresetBtn" type="button">プリセット削除</button>
+              <div></div>
+            </div>
+
+            <ul id="metaList" class="meta-list"></ul>
+          </div>
+        </details>
+
+        <details class="option-box">
+          <summary>診断ログ（トラブル時）</summary>
+          <pre id="debugLog" style="margin:8px 0 0;padding:10px;background:#0f172a;color:#e2e8f0;border-radius:8px;max-height:220px;overflow:auto;font-size:12px;line-height:1.4;"></pre>
+        </details>
+      </section>
+
+      <section class="panel">
+        <h2 style="margin:0 0 8px;font-size:18px;">レイアウトプレビュー</h2>
+        <p class="preview-tip">画像をドラッグして位置を微調整、別の画像上へドロップで並び順を入れ替えできます。</p>
+        <div class="preview-wrap">
+          <canvas id="previewCanvas" width="640" height="360"></canvas>
+        </div>
+      </section>
+    </main>
+
+    <script id="gifjsScript" src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
