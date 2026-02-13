@@ -440,7 +440,6 @@ function getLayoutMetrics(sources, settings) {
   const scaledContentHeight = base.contentHeight * drawScale;
   const originX = Math.floor((width - scaledContentWidth) / 2);
   const originY = Math.floor((height - scaledContentHeight) / 2);
-        setProgress(phasePercent);
   return {
     ...base,
     width,
