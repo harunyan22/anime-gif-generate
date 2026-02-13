@@ -69,6 +69,45 @@
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       }
 
+      .upload-zone {
+        grid-column: 1 / -1;
+        border: 2px dashed #93c5fd;
+        border-radius: 12px;
+        background: #eff6ff;
+        padding: 14px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .upload-zone.is-dragover {
+        border-color: #2563eb;
+        background: #dbeafe;
+      }
+
+      .upload-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #1e3a8a;
+      }
+
+      .upload-sub {
+        margin: 0;
+        color: #334155;
+        font-size: 12px;
+      }
+
+      .upload-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .file-summary {
+        font-size: 12px;
+        color: #475569;
+      }
+
       label {
         display: grid;
         gap: 6px;
@@ -131,9 +170,34 @@
 
       .action-row {
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-columns: 1fr;
         gap: 12px;
         margin-top: 12px;
+      }
+
+      .preview-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+
+      .preview-head h2 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .preview-icon-btn {
+        width: 40px;
+        min-width: 40px;
+        height: 40px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        font-size: 18px;
       }
 
       .card-note {
@@ -276,6 +340,10 @@
         background: #f8fafc;
       }
 
+      details.option-box.hidden-until-error {
+        display: none;
+      }
+
       details.option-box > summary {
         cursor: pointer;
         font-size: 13px;
@@ -367,6 +435,24 @@
       :root[data-theme='dark'] .status-hint,
       :root[data-theme='dark'] .progress-text {
         color: #94a3b8;
+      }
+
+      :root[data-theme='dark'] .upload-zone {
+        background: #0f1c34;
+        border-color: #3b82f6;
+      }
+
+      :root[data-theme='dark'] .upload-zone.is-dragover {
+        background: #1e3a8a;
+      }
+
+      :root[data-theme='dark'] .upload-title {
+        color: #bfdbfe;
+      }
+
+      :root[data-theme='dark'] .upload-sub,
+      :root[data-theme='dark'] .file-summary {
+        color: #cbd5e1;
       }
 
       :root[data-theme='dark'] input[type="number"],
@@ -640,6 +726,11 @@
           grid-template-columns: 1fr;
         }
 
+        .upload-actions {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
         .preset-row {
           grid-template-columns: 1fr;
         }
@@ -647,6 +738,16 @@
         .action-row {
           grid-template-columns: 1fr;
           gap: 8px;
+        }
+
+        .preview-head {
+          margin-bottom: 6px;
+        }
+
+        .preview-icon-btn {
+          width: 44px;
+          min-width: 44px;
+          height: 44px;
         }
 
         input[type="number"],
@@ -702,10 +803,15 @@
         </div>
 
         <div class="controls compact">
-          <label>
-            GIFファイル（複数選択）
-            <input id="gifInput" type="file" accept="image/gif" multiple />
-          </label>
+          <div id="uploadZone" class="upload-zone" aria-label="GIFアップロードエリア">
+            <div class="upload-title">GIFファイルを追加</div>
+            <p class="upload-sub">ここにドラッグ&ドロップ、またはボタンから選択</p>
+            <div class="upload-actions">
+              <button id="selectFilesBtn" class="btn-secondary" type="button">ファイルを選択</button>
+              <span id="fileSummary" class="file-summary">未選択</span>
+            </div>
+            <input id="gifInput" type="file" accept="image/gif" multiple hidden />
+          </div>
 
           <label>
             列数
@@ -728,9 +834,7 @@
         </div>
 
         <div class="action-row">
-          <button id="previewBtn" class="btn-secondary" type="button">プレビュー更新</button>
           <button id="generateBtn" type="button" disabled>GIFを生成</button>
-          <button id="cancelBtn" class="btn-danger" type="button" disabled>生成を中断</button>
         </div>
 
         <div id="status" class="status" role="status" aria-live="polite">
@@ -794,6 +898,21 @@
           </div>
         </details>
 
+      </section>
+
+      <section class="panel">
+        <div class="preview-head">
+          <h2>レイアウトプレビュー</h2>
+          <button id="previewBtn" class="btn-secondary preview-icon-btn" type="button" title="プレビュー更新" aria-label="プレビュー更新">↻</button>
+        </div>
+        <p class="preview-tip">画像をドラッグして位置を微調整、別の画像上へドロップで並び順を入れ替えできます。</p>
+        <div id="previewWrap" class="preview-wrap">
+          <canvas id="previewCanvas" width="640" height="360"></canvas>
+        </div>
+        <div class="footer-note">
+          問い合わせ: <a href="https://x.com/HaruAyanokouzi" target="_blank" rel="noopener noreferrer">https://x.com/HaruAyanokouzi</a>
+        </div>
+
         <details class="option-box">
           <summary>制限・更新情報・問い合わせ</summary>
           <div class="option-body">
@@ -820,21 +939,10 @@
           </div>
         </details>
 
-        <details class="option-box">
+        <details id="debugSection" class="option-box hidden-until-error">
           <summary>診断ログ（トラブル時）</summary>
           <pre id="debugLog" style="margin:8px 0 0;padding:10px;background:#0f172a;color:#e2e8f0;border-radius:8px;max-height:220px;overflow:auto;font-size:12px;line-height:1.4;"></pre>
         </details>
-      </section>
-
-      <section class="panel">
-        <h2 style="margin:0 0 8px;font-size:18px;">レイアウトプレビュー</h2>
-        <p class="preview-tip">画像をドラッグして位置を微調整、別の画像上へドロップで並び順を入れ替えできます。</p>
-        <div id="previewWrap" class="preview-wrap">
-          <canvas id="previewCanvas" width="640" height="360"></canvas>
-        </div>
-        <div class="footer-note">
-          問い合わせ: <a href="https://x.com/HaruAyanokouzi" target="_blank" rel="noopener noreferrer">https://x.com/HaruAyanokouzi</a>
-        </div>
       </section>
     </main>
 

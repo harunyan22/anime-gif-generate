@@ -1,4 +1,7 @@
 const gifInput = document.getElementById('gifInput');
+const uploadZone = document.getElementById('uploadZone');
+const selectFilesBtn = document.getElementById('selectFilesBtn');
+const fileSummaryEl = document.getElementById('fileSummary');
 const columnsInput = document.getElementById('columnsInput');
 const gapInput = document.getElementById('gapInput');
 const bgInput = document.getElementById('bgInput');
@@ -16,12 +19,12 @@ const themeToggleBtn = document.getElementById('themeToggleBtn');
 
 const previewBtn = document.getElementById('previewBtn');
 const generateBtn = document.getElementById('generateBtn');
-const cancelBtn = document.getElementById('cancelBtn');
 const statusEl = document.getElementById('status');
 const statusMainEl = document.getElementById('statusMain');
 const statusHintEl = document.getElementById('statusHint');
 const progressBarEl = document.getElementById('progressBar');
 const progressTextEl = document.getElementById('progressText');
+const debugSectionEl = document.getElementById('debugSection');
 const metaList = document.getElementById('metaList');
 const downloadEl = document.getElementById('download');
 const debugLogEl = document.getElementById('debugLog');
@@ -130,6 +133,26 @@ function setStatus(text, isError = false) {
   }
 
   statusEl.style.color = isError ? '#c53030' : '#2b6cb0';
+
+  const troublePattern = /エラー|例外|失敗|中断|未対応/i;
+  const isTrouble = isError && troublePattern.test(String(mainText));
+  if (isTrouble && debugSectionEl) {
+    debugSectionEl.classList.remove('hidden-until-error');
+  }
+}
+
+function updateFileSummary(files) {
+  if (!fileSummaryEl) {
+    return;
+  }
+
+  if (!files || files.length === 0) {
+    fileSummaryEl.textContent = '未選択';
+    return;
+  }
+
+  const gifCount = files.filter((file) => file.type === 'image/gif').length;
+  fileSummaryEl.textContent = `${files.length}件選択（GIF: ${gifCount}件）`;
 }
 
 function setProgress(percent, text = '') {
@@ -156,8 +179,33 @@ function syncEmptyState() {
 
 function setGeneratingState(isGenerating) {
   state.isGenerating = isGenerating;
-  generateBtn.disabled = isGenerating || state.sources.length === 0;
-  cancelBtn.disabled = !isGenerating;
+  if (isGenerating) {
+    generateBtn.disabled = false;
+    generateBtn.textContent = '生成を中断';
+    generateBtn.classList.add('btn-danger');
+  } else {
+    generateBtn.disabled = state.sources.length === 0;
+    generateBtn.textContent = 'GIFを生成';
+    generateBtn.classList.remove('btn-danger');
+  }
+}
+
+function requestCancelGeneration() {
+  if (!state.isGenerating) {
+    return;
+  }
+
+  state.cancelRequested = true;
+  if (state.currentGifEncoder && typeof state.currentGifEncoder.abort === 'function') {
+    try {
+      state.currentGifEncoder.abort();
+    } catch {
+      // noop
+    }
+  }
+
+  setStatus('生成中断を要求しました。停止まで数秒かかる場合があります。', true);
+  setProgress(0, '中断処理中...');
 }
 
 function getWorkloadLevel(metrics, totalFrames) {
@@ -255,6 +303,18 @@ function syncControlEnabledStates() {
   if (previewWrapEl) {
     previewWrapEl.classList.toggle('checkerboard', transparentBgInput.checked);
   }
+}
+
+function syncCheckerboardScale(drawScale = 1) {
+  if (!previewWrapEl) {
+    return;
+  }
+
+  const baseTile = 16;
+  const tile = Math.max(6, Math.round(baseTile * drawScale));
+  const halfTile = Math.round(tile / 2);
+  previewWrapEl.style.backgroundSize = `${tile}px ${tile}px`;
+  previewWrapEl.style.backgroundPosition = `0 0, 0 ${halfTile}px, ${halfTile}px -${halfTile}px, -${halfTile}px 0`;
 }
 
 function paintBackground(ctx, width, height, bgColor, transparent, forGifOutput = false) {
@@ -758,13 +818,13 @@ async function loadGifs(files) {
   clearDownloadLink();
   stopPreviewAnimation();
   resetProgress();
+  updateFileSummary(files || []);
   state.sources = [];
   metaList.innerHTML = '';
   syncEmptyState();
 
   if (!files?.length) {
     generateBtn.disabled = true;
-    cancelBtn.disabled = true;
     setStatus('GIFファイルを選択してください。', true);
     previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
     return;
@@ -774,7 +834,6 @@ async function loadGifs(files) {
     setStatus('このブラウザはImageDecoderに未対応です。Edge/Chrome最新版を使用してください。', true);
     logDebug('ImageDecoder未対応', { userAgent: navigator.userAgent });
     generateBtn.disabled = true;
-    cancelBtn.disabled = true;
     return;
   }
 
@@ -801,7 +860,6 @@ async function loadGifs(files) {
   if (!parsedSources.length) {
     setStatus('有効なGIFを読み込めませんでした。', true);
     generateBtn.disabled = true;
-    cancelBtn.disabled = true;
     return;
   }
 
@@ -814,7 +872,6 @@ async function loadGifs(files) {
 
   renderMeta();
   generateBtn.disabled = false;
-  cancelBtn.disabled = true;
   syncEmptyState();
   updatePreview();
 }
@@ -834,6 +891,7 @@ function updatePreview() {
   const settings = getCurrentSettings();
   const metrics = getLayoutMetrics(state.sources, settings);
   const warningMessage = getColumnsLimitWarningMessage() || getResolutionWarningMessage(metrics);
+  syncCheckerboardScale(metrics.drawScale);
 
   previewCanvas.width = metrics.width;
   previewCanvas.height = metrics.height;
@@ -1241,10 +1299,58 @@ function bindSettingAutoPreview() {
 gifInput.addEventListener('change', async (event) => {
   try {
     const files = Array.from(event.target.files || []);
+    updateFileSummary(files);
     logDebug('GIF読み込み開始', { fileCount: files.length, files: files.map((file) => file.name) });
     await loadGifs(files);
   } catch (error) {
     logDebug('読み込み例外', { message: error.message });
+    setStatus(`読み込みエラー: ${error.message} / ${getErrorActionHint(error.message)}`, true);
+    generateBtn.disabled = true;
+  }
+});
+
+selectFilesBtn.addEventListener('click', () => {
+  gifInput.click();
+});
+
+function setUploadZoneDragState(active) {
+  if (!uploadZone) {
+    return;
+  }
+  uploadZone.classList.toggle('is-dragover', active);
+}
+
+function preventDefaultDrag(event) {
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+['dragenter', 'dragover'].forEach((eventName) => {
+  uploadZone.addEventListener(eventName, (event) => {
+    preventDefaultDrag(event);
+    setUploadZoneDragState(true);
+  });
+});
+
+['dragleave', 'drop'].forEach((eventName) => {
+  uploadZone.addEventListener(eventName, (event) => {
+    preventDefaultDrag(event);
+    setUploadZoneDragState(false);
+  });
+});
+
+uploadZone.addEventListener('drop', async (event) => {
+  try {
+    const droppedFiles = Array.from(event.dataTransfer?.files || []);
+    if (droppedFiles.length === 0) {
+      return;
+    }
+
+    updateFileSummary(droppedFiles);
+    logDebug('GIFドラッグ読込開始', { fileCount: droppedFiles.length, files: droppedFiles.map((file) => file.name) });
+    await loadGifs(droppedFiles);
+  } catch (error) {
+    logDebug('ドラッグ読込例外', { message: error.message });
     setStatus(`読み込みエラー: ${error.message} / ${getErrorActionHint(error.message)}`, true);
     generateBtn.disabled = true;
   }
@@ -1260,6 +1366,11 @@ previewCanvas.addEventListener('pointerup', handlePreviewMouseUp);
 previewCanvas.addEventListener('pointercancel', handlePreviewMouseUp);
 
 generateBtn.addEventListener('click', async () => {
+  if (state.isGenerating) {
+    requestCancelGeneration();
+    return;
+  }
+
   setGeneratingState(true);
   state.cancelRequested = false;
   resetProgress();
@@ -1274,24 +1385,6 @@ generateBtn.addEventListener('click', async () => {
     state.currentGifEncoder = null;
     setGeneratingState(false);
   }
-});
-
-cancelBtn.addEventListener('click', () => {
-  if (!state.isGenerating) {
-    return;
-  }
-
-  state.cancelRequested = true;
-  if (state.currentGifEncoder && typeof state.currentGifEncoder.abort === 'function') {
-    try {
-      state.currentGifEncoder.abort();
-    } catch {
-      // noop
-    }
-  }
-
-  setStatus('生成中断を要求しました。停止まで数秒かかる場合があります。', true);
-  setProgress(0, '中断処理中...');
 });
 
 savePresetBtn.addEventListener('click', savePreset);
@@ -1317,6 +1410,7 @@ window.addEventListener('beforeunload', () => {
 (() => {
   applyTheme(getSavedTheme());
   syncControlEnabledStates();
+  syncCheckerboardScale(1);
   syncEmptyState();
   bindSettingAutoPreview();
   loadPresetsFromStorage();
