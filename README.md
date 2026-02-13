@@ -8,6 +8,7 @@
 - `app.js`
 - `gif.js`
 - `gif.worker.js`
+- `gifuct-js.min.js`
 
 ## 使い方
 

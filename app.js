@@ -39,8 +39,9 @@ const GIFJS_FALLBACK = 'https://unpkg.com/gif.js.optimized/dist/gif.js';
 const GIF_WORKER_PRIMARY = 'https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.worker.js';
 const GIF_WORKER_FALLBACK = 'https://unpkg.com/gif.js.optimized/dist/gif.worker.js';
 const GIF_WORKER_LOCAL = './gif.worker.js';
-const GIFUCT_PRIMARY = 'https://cdn.jsdelivr.net/npm/gifuct-js/dist/gifuct.min.js';
-const GIFUCT_FALLBACK = 'https://unpkg.com/gifuct-js/dist/gifuct.min.js';
+const GIFUCT_LOCAL = './gifuct-js.min.js';
+const GIFUCT_PRIMARY = 'https://cdn.jsdelivr.net/npm/gifuct-js/dist/gifuct-js.min.js';
+const GIFUCT_FALLBACK = 'https://unpkg.com/gifuct-js/dist/gifuct-js.min.js';
 const GIF_TRANSPARENT_KEY_HEX = '#00ff00';
 const GIF_TRANSPARENT_KEY_NUM = 0x00ff00;
 const GIF_QUALITY_FIXED = 1;
@@ -750,9 +751,21 @@ async function ensureGifDecoderFallbackReady() {
   }
 
   try {
-    logDebug('gifuct-js 読込開始', { src: GIFUCT_PRIMARY });
+    logDebug('gifuct-js ローカル読込開始', { src: GIFUCT_LOCAL });
+    await loadScript(GIFUCT_LOCAL, 'gifuctLocal');
+    logDebug('gifuct-js ローカル読込成功', { src: GIFUCT_LOCAL });
+  } catch (error) {
+    logDebug('gifuct-js ローカル読込失敗', { message: error.message });
+  }
+
+  if (hasGifuctDecoder()) {
+    return true;
+  }
+
+  try {
+    logDebug('gifuct-js CDN読込開始', { src: GIFUCT_PRIMARY });
     await loadScript(GIFUCT_PRIMARY, 'gifuctPrimary');
-    logDebug('gifuct-js 読込成功', { src: GIFUCT_PRIMARY });
+    logDebug('gifuct-js CDN読込成功', { src: GIFUCT_PRIMARY });
   } catch (error) {
     logDebug('gifuct-js primary 読込失敗', { message: error.message });
   }
