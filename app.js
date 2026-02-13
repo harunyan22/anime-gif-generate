@@ -39,6 +39,8 @@ const GIFJS_FALLBACK = 'https://unpkg.com/gif.js.optimized/dist/gif.js';
 const GIF_WORKER_PRIMARY = 'https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.worker.js';
 const GIF_WORKER_FALLBACK = 'https://unpkg.com/gif.js.optimized/dist/gif.worker.js';
 const GIF_WORKER_LOCAL = './gif.worker.js';
+const GIFUCT_PRIMARY = 'https://cdn.jsdelivr.net/npm/gifuct-js/dist/gifuct.min.js';
+const GIFUCT_FALLBACK = 'https://unpkg.com/gifuct-js/dist/gifuct.min.js';
 const GIF_TRANSPARENT_KEY_HEX = '#00ff00';
 const GIF_TRANSPARENT_KEY_NUM = 0x00ff00;
 const GIF_QUALITY_FIXED = 1;
@@ -704,6 +706,10 @@ function hasGifEncoder() {
   return Boolean(window.GIF);
 }
 
+function hasGifuctDecoder() {
+  return typeof window.parseGIF === 'function' && typeof window.decompressFrames === 'function';
+}
+
 function loadScript(src, id) {
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -731,6 +737,34 @@ async function ensureGifEncoderReady() {
   }
 
   return hasGifEncoder();
+}
+
+async function ensureGifDecoderFallbackReady() {
+  if (hasGifuctDecoder()) {
+    return true;
+  }
+
+  try {
+    logDebug('gifuct-js 読込開始', { src: GIFUCT_PRIMARY });
+    await loadScript(GIFUCT_PRIMARY, 'gifuctPrimary');
+    logDebug('gifuct-js 読込成功', { src: GIFUCT_PRIMARY });
+  } catch (error) {
+    logDebug('gifuct-js primary 読込失敗', { message: error.message });
+  }
+
+  if (hasGifuctDecoder()) {
+    return true;
+  }
+
+  try {
+    logDebug('gifuct-js フォールバック読込開始', { src: GIFUCT_FALLBACK });
+    await loadScript(GIFUCT_FALLBACK, 'gifuctFallback');
+    logDebug('gifuct-js フォールバック読込成功', { src: GIFUCT_FALLBACK });
+  } catch (error) {
+    logDebug('gifuct-js フォールバック読込失敗', { message: error.message });
+  }
+
+  return hasGifuctDecoder();
 }
 
 async function resolveWorkerScriptUrl() {
@@ -859,6 +893,79 @@ async function decodeGifWithImageDecoder(file) {
   };
 }
 
+async function decodeGifWithGifuct(file) {
+  if (!hasGifuctDecoder()) {
+    throw new Error('GIFデコーダを初期化できませんでした。');
+  }
+
+  const buffer = await file.arrayBuffer();
+  const gif = window.parseGIF(new Uint8Array(buffer));
+  const rawFrames = window.decompressFrames(gif, true);
+
+  const width = gif?.lsd?.width;
+  const height = gif?.lsd?.height;
+
+  if (!width || !height || !rawFrames?.length) {
+    throw new Error(`${file.name}: GIFフレームを解析できませんでした。`);
+  }
+
+  const workCanvas = document.createElement('canvas');
+  workCanvas.width = width;
+  workCanvas.height = height;
+  const workCtx = workCanvas.getContext('2d');
+  workCtx.clearRect(0, 0, width, height);
+
+  const frames = [];
+  const timeline = [];
+  let totalTime = 0;
+
+  for (const frame of rawFrames) {
+    const dims = frame.dims || { left: 0, top: 0, width, height };
+    const left = dims.left || 0;
+    const top = dims.top || 0;
+    const patchWidth = dims.width || width;
+    const patchHeight = dims.height || height;
+
+    const restoreSnapshot = frame.disposalType === 3 ? workCtx.getImageData(0, 0, width, height) : null;
+
+    if (frame.patch && patchWidth > 0 && patchHeight > 0) {
+      const patchImage = new ImageData(new Uint8ClampedArray(frame.patch), patchWidth, patchHeight);
+      workCtx.putImageData(patchImage, left, top);
+    }
+
+    const composed = workCtx.getImageData(0, 0, width, height);
+    const rawDelay = Number.isFinite(frame.delay) && frame.delay > 0 ? frame.delay : 10;
+    const delayMs = Math.max(20, Math.round(rawDelay * 10));
+
+    frames.push({ imageData: composed, delayMs });
+    totalTime += delayMs;
+    timeline.push(totalTime);
+
+    if (frame.disposalType === 2) {
+      workCtx.clearRect(left, top, patchWidth, patchHeight);
+    } else if (frame.disposalType === 3 && restoreSnapshot) {
+      workCtx.putImageData(restoreSnapshot, 0, 0);
+    }
+  }
+
+  if (!frames.length) {
+    throw new Error(`${file.name}: フレームを読み込めませんでした。`);
+  }
+
+  return {
+    name: file.name,
+    width,
+    height,
+    frames,
+    timeline,
+    durationMs: totalTime,
+    offsetX: 0,
+    offsetY: 0,
+    blitCanvas: Object.assign(document.createElement('canvas'), { width, height }),
+    blitCtx: null
+  };
+}
+
 function prepareSourceBlitBuffers() {
   for (const source of state.sources) {
     source.blitCtx = source.blitCanvas.getContext('2d');
@@ -881,11 +988,18 @@ async function loadGifs(files) {
     return;
   }
 
-  if (!ensureImageDecoderReady()) {
-    setStatus('このブラウザはImageDecoderに未対応です。Edge/Chrome最新版を使用してください。', true);
-    logDebug('ImageDecoder未対応', { userAgent: navigator.userAgent });
+  const canUseImageDecoder = ensureImageDecoderReady();
+  const canUseGifuctFallback = canUseImageDecoder ? true : await ensureGifDecoderFallbackReady();
+
+  if (!canUseImageDecoder && !canUseGifuctFallback) {
+    setStatus('このブラウザではGIF解析機能を初期化できませんでした。別ブラウザで再試行してください。', true);
+    logDebug('GIFデコーダ未対応', { userAgent: navigator.userAgent });
     generateBtn.disabled = true;
     return;
+  }
+
+  if (!canUseImageDecoder) {
+    logDebug('ImageDecoder未対応のため gifuct-js で解析します', { userAgent: navigator.userAgent });
   }
 
   setStatus('GIFを解析中です...');
@@ -897,7 +1011,9 @@ async function loadGifs(files) {
       continue;
     }
 
-    const source = await decodeGifWithImageDecoder(file);
+    const source = canUseImageDecoder
+      ? await decodeGifWithImageDecoder(file)
+      : await decodeGifWithGifuct(file);
     parsedSources.push(source);
     logDebug('GIF解析完了', {
       name: source.name,
@@ -1494,6 +1610,7 @@ window.addEventListener('beforeunload', () => {
     userAgent: navigator.userAgent,
     protocol: location.protocol,
     imageDecoder: ensureImageDecoderReady(),
+    gifuctReady: hasGifuctDecoder(),
     gifjsPrimary: GIFJS_PRIMARY
   });
 })();
