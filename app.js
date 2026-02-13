@@ -76,6 +76,11 @@ function logDebug(message, detail) {
     debugLogEl.textContent += `${line}\n`;
     debugLogEl.scrollTop = debugLogEl.scrollHeight;
   }
+
+  const logTroublePattern = /エラー|例外|失敗|中断|未対応|不可|できません|読み込めません|初期化できません|error|failed|abort/i;
+  if (debugSectionEl && logTroublePattern.test(String(message))) {
+    debugSectionEl.classList.remove('hidden-until-error');
+  }
 }
 
 function applyTheme(theme) {
@@ -140,8 +145,8 @@ function setStatus(text, isError = false) {
 
   statusEl.style.color = isError ? '#c53030' : '#2b6cb0';
 
-  const troublePattern = /エラー|例外|失敗|中断|未対応/i;
-  const isTrouble = isError && troublePattern.test(String(mainText));
+  const troublePattern = /エラー|例外|失敗|中断|未対応|不可|できません|読み込めません|初期化できません/i;
+  const isTrouble = isError && troublePattern.test(`${String(mainText)} ${String(hintText)}`);
   if (isTrouble && debugSectionEl) {
     debugSectionEl.classList.remove('hidden-until-error');
   }
