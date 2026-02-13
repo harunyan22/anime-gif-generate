@@ -67,6 +67,8 @@ const state = {
   currentGifEncoder: null
 };
 
+let gifuctDecoderCtor = null;
+
 function logDebug(message, detail) {
   const timestamp = new Date().toLocaleTimeString();
   const suffix = typeof detail === 'undefined' ? '' : ` ${JSON.stringify(detail)}`;
@@ -712,8 +714,15 @@ function hasGifEncoder() {
   return Boolean(window.GIF);
 }
 
+function isGifuctDecoderCtor(candidate) {
+  return (
+    typeof candidate === 'function' &&
+    typeof candidate.prototype?.decompressFrames === 'function'
+  );
+}
+
 function hasGifuctDecoder() {
-  return typeof window.parseGIF === 'function' && typeof window.decompressFrames === 'function';
+  return Boolean(gifuctDecoderCtor);
 }
 
 function loadScript(src, id) {
@@ -750,37 +759,43 @@ async function ensureGifDecoderFallbackReady() {
     return true;
   }
 
-  try {
-    logDebug('gifuct-js ローカル読込開始', { src: GIFUCT_LOCAL });
-    await loadScript(GIFUCT_LOCAL, 'gifuctLocal');
-    logDebug('gifuct-js ローカル読込成功', { src: GIFUCT_LOCAL });
-  } catch (error) {
-    logDebug('gifuct-js ローカル読込失敗', { message: error.message });
+  async function loadGifuctDecoderScript(src, scriptId, label) {
+    const previousGIF = window.GIF;
+    try {
+      logDebug(`${label}読込開始`, { src });
+      await loadScript(src, scriptId);
+
+      const loadedGIF = window.GIF;
+      if (isGifuctDecoderCtor(loadedGIF)) {
+        gifuctDecoderCtor = loadedGIF;
+        logDebug(`${label}読込成功`, { src });
+      } else {
+        logDebug(`${label}読込後にデコーダ検出失敗`, { src });
+      }
+    } catch (error) {
+      logDebug(`${label}読込失敗`, { message: error.message });
+    } finally {
+      if (typeof previousGIF === 'undefined') {
+        delete window.GIF;
+      } else {
+        window.GIF = previousGIF;
+      }
+    }
   }
+
+  await loadGifuctDecoderScript(GIFUCT_LOCAL, 'gifuctLocal', 'gifuct-js ローカル');
 
   if (hasGifuctDecoder()) {
     return true;
   }
 
-  try {
-    logDebug('gifuct-js CDN読込開始', { src: GIFUCT_PRIMARY });
-    await loadScript(GIFUCT_PRIMARY, 'gifuctPrimary');
-    logDebug('gifuct-js CDN読込成功', { src: GIFUCT_PRIMARY });
-  } catch (error) {
-    logDebug('gifuct-js primary 読込失敗', { message: error.message });
-  }
+  await loadGifuctDecoderScript(GIFUCT_PRIMARY, 'gifuctPrimary', 'gifuct-js CDN');
 
   if (hasGifuctDecoder()) {
     return true;
   }
 
-  try {
-    logDebug('gifuct-js フォールバック読込開始', { src: GIFUCT_FALLBACK });
-    await loadScript(GIFUCT_FALLBACK, 'gifuctFallback');
-    logDebug('gifuct-js フォールバック読込成功', { src: GIFUCT_FALLBACK });
-  } catch (error) {
-    logDebug('gifuct-js フォールバック読込失敗', { message: error.message });
-  }
+  await loadGifuctDecoderScript(GIFUCT_FALLBACK, 'gifuctFallback', 'gifuct-js フォールバック');
 
   return hasGifuctDecoder();
 }
@@ -916,12 +931,13 @@ async function decodeGifWithGifuct(file) {
     throw new Error('GIFデコーダを初期化できませんでした。');
   }
 
+  const GifuctDecoder = gifuctDecoderCtor;
   const buffer = await file.arrayBuffer();
-  const gif = window.parseGIF(new Uint8Array(buffer));
-  const rawFrames = window.decompressFrames(gif, true);
+  const decoder = new GifuctDecoder(buffer);
+  const rawFrames = decoder.decompressFrames(true);
 
-  const width = gif?.lsd?.width;
-  const height = gif?.lsd?.height;
+  const width = decoder?.raw?.lsd?.width;
+  const height = decoder?.raw?.lsd?.height;
 
   if (!width || !height || !rawFrames?.length) {
     throw new Error(`${file.name}: GIFフレームを解析できませんでした。`);
@@ -952,8 +968,8 @@ async function decodeGifWithGifuct(file) {
     }
 
     const composed = workCtx.getImageData(0, 0, width, height);
-    const rawDelay = Number.isFinite(frame.delay) && frame.delay > 0 ? frame.delay : 10;
-    const delayMs = Math.max(20, Math.round(rawDelay * 10));
+    const rawDelay = Number.isFinite(frame.delay) && frame.delay > 0 ? frame.delay : 100;
+    const delayMs = Math.max(20, Math.round(rawDelay));
 
     frames.push({ imageData: composed, delayMs });
     totalTime += delayMs;
