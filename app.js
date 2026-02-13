@@ -159,18 +159,18 @@ function updateFileSummary(files) {
   fileSummaryEl.textContent = `${files.length}件選択（GIF: ${gifCount}件）`;
 }
 
-function setProgress(percent, text = '') {
+function setProgress(percent) {
   const clamped = Math.max(0, Math.min(100, Math.round(percent)));
   if (progressBarEl) {
     progressBarEl.style.width = `${clamped}%`;
   }
   if (progressTextEl) {
-    progressTextEl.textContent = text;
+    progressTextEl.textContent = '';
   }
 }
 
 function resetProgress() {
-  setProgress(0, '');
+  setProgress(0);
 }
 
 function syncEmptyState() {
@@ -209,7 +209,7 @@ function requestCancelGeneration() {
   }
 
   setStatus('生成中断を要求しました。停止まで数秒かかる場合があります。', true);
-  setProgress(0, '中断処理中...');
+  setProgress(0);
 }
 
 function getWorkloadLevel(metrics, totalFrames) {
@@ -366,7 +366,7 @@ function calculateOptimalFpsFromSources(sources, minFps = 5, maxFps = 30) {
   if (!sources?.length) {
     return 15;
   }
-
+      setProgress(phasePercent, '');
   const delays = [];
   for (const source of sources) {
     for (const frame of source.frames) {
@@ -1149,7 +1149,7 @@ async function generateCombinedGif() {
   }
 
   setStatus(`最適化準備中... (0/${totalFrames}) / 負荷目安: ${workloadLevel}`);
-  setProgress(0, `負荷目安: ${workloadLevel}`);
+  setProgress(0);
 
   const optimizedFrames = [];
   let removedFrames = 0;
@@ -1188,7 +1188,7 @@ async function generateCombinedGif() {
     if (frameNumber % 5 === 0 || frameNumber === totalFrames - 1) {
       setStatus(`最適化中... (${frameNumber + 1}/${totalFrames})`);
       const phasePercent = ((frameNumber + 1) / totalFrames) * 35;
-      setProgress(phasePercent, `最適化 ${frameNumber + 1}/${totalFrames}`);
+      setProgress(phasePercent);
     }
   }
 
@@ -1235,7 +1235,7 @@ async function generateCombinedGif() {
       const etaSec = progress > 0 ? Math.max(0, Math.round((elapsedSec * (1 - progress)) / progress)) : null;
       const etaText = etaSec === null ? '' : ` / 残り約${etaSec}秒`;
       setStatus(`出力GIFを生成中... ${percent}%${etaText}`);
-      setProgress(35 + progress * 65, `生成 ${percent}%${etaText.replace(' / ', ' ')}`);
+      setProgress(35 + progress * 65);
     });
     gif.on('finished', resolve);
     gif.on('abort', () => reject(new Error('GIF生成が中断されました。')));
@@ -1254,7 +1254,7 @@ async function generateCombinedGif() {
   downloadEl.innerHTML = '';
   downloadEl.appendChild(link);
   setStatus(`GIF生成が完了しました。最適化: ${removedFrames}フレーム削減`);
-  setProgress(100, '完了');
+  setProgress(100);
 }
 
 function loadPresetsFromStorage() {
