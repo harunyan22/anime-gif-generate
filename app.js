@@ -366,7 +366,7 @@ function calculateOptimalFpsFromSources(sources, minFps = 5, maxFps = 30) {
   if (!sources?.length) {
     return 15;
   }
-      setProgress(phasePercent, '');
+
   const delays = [];
   for (const source of sources) {
     for (const frame of source.frames) {
@@ -430,7 +430,7 @@ function getLayoutMetrics(sources, settings) {
   const scaledContentHeight = base.contentHeight * drawScale;
   const originX = Math.floor((width - scaledContentWidth) / 2);
   const originY = Math.floor((height - scaledContentHeight) / 2);
-
+        setProgress(phasePercent);
   return {
     ...base,
     width,
