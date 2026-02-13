@@ -5,7 +5,9 @@ const fileSummaryEl = document.getElementById('fileSummary');
 const columnsInput = document.getElementById('columnsInput');
 const gapInput = document.getElementById('gapInput');
 const bgInput = document.getElementById('bgInput');
+const bgColorRowEl = document.getElementById('bgColorRow');
 const transparentBgInput = document.getElementById('transparentBgInput');
+const transparentToggleEl = document.querySelector('.transparent-toggle');
 const fixedSizeInput = document.getElementById('fixedSizeInput');
 const canvasWidthInput = document.getElementById('canvasWidthInput');
 const canvasHeightInput = document.getElementById('canvasHeightInput');
@@ -13,7 +15,6 @@ const fpsInput = document.getElementById('fpsInput');
 const presetNameInput = document.getElementById('presetNameInput');
 const savePresetBtn = document.getElementById('savePresetBtn');
 const presetSelect = document.getElementById('presetSelect');
-const loadPresetBtn = document.getElementById('loadPresetBtn');
 const deletePresetBtn = document.getElementById('deletePresetBtn');
 const themeToggleBtn = document.getElementById('themeToggleBtn');
 
@@ -85,7 +86,10 @@ function applyTheme(theme) {
 
   if (themeToggleBtn) {
     const label = theme === 'light' ? 'ライト' : theme === 'dark' ? 'ダーク' : '自動';
-    themeToggleBtn.textContent = `テーマ: ${label}`;
+    const icon = theme === 'light' ? '☀' : theme === 'dark' ? '🌙' : '🖥';
+    themeToggleBtn.textContent = icon;
+    themeToggleBtn.title = `テーマ: ${label}`;
+    themeToggleBtn.setAttribute('aria-label', `テーマ: ${label}`);
   }
 }
 
@@ -296,13 +300,26 @@ function applySettings(settings) {
 }
 
 function syncControlEnabledStates() {
-  bgInput.disabled = transparentBgInput.checked;
+  if (bgColorRowEl) {
+    bgColorRowEl.classList.toggle('is-active', !transparentBgInput.checked);
+  }
+  if (transparentToggleEl) {
+    transparentToggleEl.classList.toggle('is-active', transparentBgInput.checked);
+  }
   canvasWidthInput.disabled = !fixedSizeInput.checked;
   canvasHeightInput.disabled = !fixedSizeInput.checked;
 
   if (previewWrapEl) {
     previewWrapEl.classList.toggle('checkerboard', transparentBgInput.checked);
   }
+}
+
+function selectBackgroundMode(mode) {
+  const useTransparent = mode === 'transparent';
+  if (transparentBgInput.checked !== useTransparent) {
+    transparentBgInput.checked = useTransparent;
+  }
+  syncControlEnabledStates();
 }
 
 function syncCheckerboardScale(drawScale = 1) {
@@ -569,55 +586,89 @@ function areImageDataEqual(imageDataA, imageDataB) {
 function renderMeta() {
   metaList.innerHTML = '';
 
+  if (state.sources.length > 0) {
+    const headerItem = document.createElement('li');
+    headerItem.className = 'meta-item header';
+
+    const headerRow = document.createElement('div');
+    headerRow.className = 'meta-row';
+    headerRow.innerHTML = `
+      <span class="meta-col">並び</span>
+      <span class="meta-col name">ファイル名</span>
+      <span class="meta-col size">サイズ</span>
+      <span class="meta-col frames">フレーム</span>
+      <span class="meta-col duration">時間(ms)</span>
+      <span class="meta-col offset">X</span>
+      <span class="meta-col offset">Y</span>
+    `;
+
+    headerItem.appendChild(headerRow);
+    metaList.appendChild(headerItem);
+  }
+
   state.sources.forEach((source, idx) => {
     const item = document.createElement('li');
     item.className = 'meta-item';
     item.draggable = true;
     item.dataset.index = String(idx);
 
-    const top = document.createElement('div');
-    top.className = 'meta-top';
-
-    const name = document.createElement('div');
-    name.textContent = `${idx + 1}. ${source.name} / ${source.width}x${source.height} / ${source.frames.length}f`;
+    const row = document.createElement('div');
+    row.className = 'meta-row';
 
     const dragHandle = document.createElement('span');
     dragHandle.className = 'drag-handle';
-    dragHandle.textContent = '↕ 並び替え';
+    dragHandle.classList.add('meta-col');
+    dragHandle.textContent = `↕ ${idx + 1}`;
 
-    top.appendChild(name);
-    top.appendChild(dragHandle);
+    const name = document.createElement('span');
+    name.className = 'meta-col name';
+    name.textContent = source.name;
 
-    const offsetRow = document.createElement('div');
-    offsetRow.className = 'offset-row';
+    const size = document.createElement('span');
+    size.className = 'meta-col size';
+    size.textContent = `${source.width}x${source.height}`;
 
-    const offsetXLabel = document.createElement('label');
-    offsetXLabel.textContent = 'Xオフセット(px)';
+    const frames = document.createElement('span');
+    frames.className = 'meta-col frames';
+    frames.textContent = `${source.frames.length}`;
+
+    const duration = document.createElement('span');
+    duration.className = 'meta-col duration';
+    duration.textContent = `${source.durationMs}`;
+
+    const offsetXWrap = document.createElement('span');
+    offsetXWrap.className = 'meta-col offset';
     const offsetXInput = document.createElement('input');
     offsetXInput.type = 'number';
     offsetXInput.value = String(source.offsetX || 0);
+    offsetXInput.title = `${source.name} のXオフセット`;
     offsetXInput.addEventListener('input', () => {
       source.offsetX = clampInteger(offsetXInput.value, -5000, 5000, 0);
       scheduleAutoPreview();
     });
-    offsetXLabel.appendChild(offsetXInput);
+    offsetXWrap.appendChild(offsetXInput);
 
-    const offsetYLabel = document.createElement('label');
-    offsetYLabel.textContent = 'Yオフセット(px)';
+    const offsetYWrap = document.createElement('span');
+    offsetYWrap.className = 'meta-col offset';
     const offsetYInput = document.createElement('input');
     offsetYInput.type = 'number';
     offsetYInput.value = String(source.offsetY || 0);
+    offsetYInput.title = `${source.name} のYオフセット`;
     offsetYInput.addEventListener('input', () => {
       source.offsetY = clampInteger(offsetYInput.value, -5000, 5000, 0);
       scheduleAutoPreview();
     });
-    offsetYLabel.appendChild(offsetYInput);
+    offsetYWrap.appendChild(offsetYInput);
 
-    offsetRow.appendChild(offsetXLabel);
-    offsetRow.appendChild(offsetYLabel);
+    row.appendChild(dragHandle);
+    row.appendChild(name);
+    row.appendChild(size);
+    row.appendChild(frames);
+    row.appendChild(duration);
+    row.appendChild(offsetXWrap);
+    row.appendChild(offsetYWrap);
 
-    item.appendChild(top);
-    item.appendChild(offsetRow);
+    item.appendChild(row);
 
     item.addEventListener('dragstart', () => {
       state.dragSourceIndex = idx;
@@ -1272,18 +1323,16 @@ function deletePreset() {
 }
 
 function bindSettingAutoPreview() {
-  const inputs = [
+  const generalInputs = [
     columnsInput,
     gapInput,
-    bgInput,
-    transparentBgInput,
     fixedSizeInput,
     canvasWidthInput,
     canvasHeightInput,
     fpsInput
   ];
 
-  for (const input of inputs) {
+  for (const input of generalInputs) {
     input.addEventListener('input', () => {
       syncControlEnabledStates();
       scheduleAutoPreview();
@@ -1294,6 +1343,26 @@ function bindSettingAutoPreview() {
       scheduleAutoPreview();
     });
   }
+
+  transparentBgInput.addEventListener('input', () => {
+    selectBackgroundMode(transparentBgInput.checked ? 'transparent' : 'color');
+    scheduleAutoPreview();
+  });
+
+  transparentBgInput.addEventListener('change', () => {
+    selectBackgroundMode(transparentBgInput.checked ? 'transparent' : 'color');
+    scheduleAutoPreview();
+  });
+
+  bgInput.addEventListener('input', () => {
+    selectBackgroundMode('color');
+    scheduleAutoPreview();
+  });
+
+  bgInput.addEventListener('change', () => {
+    selectBackgroundMode('color');
+    scheduleAutoPreview();
+  });
 }
 
 gifInput.addEventListener('change', async (event) => {
@@ -1388,8 +1457,12 @@ generateBtn.addEventListener('click', async () => {
 });
 
 savePresetBtn.addEventListener('click', savePreset);
-loadPresetBtn.addEventListener('click', loadPreset);
 deletePresetBtn.addEventListener('click', deletePreset);
+presetSelect.addEventListener('change', () => {
+  if (presetSelect.value) {
+    loadPreset();
+  }
+});
 themeToggleBtn.addEventListener('click', cycleTheme);
 
 window.addEventListener('error', (event) => {

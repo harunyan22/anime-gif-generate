@@ -67,6 +67,23 @@
 
       .controls.compact {
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        align-items: stretch;
+      }
+
+      .compact-field {
+        border: 1px solid #dbe3ef;
+        border-radius: 10px;
+        padding: 8px;
+        background: #f8fafc;
+        display: grid;
+        gap: 6px;
+        align-content: start;
+      }
+
+      .field-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #334155;
       }
 
       .upload-zone {
@@ -115,6 +132,95 @@
         color: #2d3748;
       }
 
+      .bg-inline {
+        border: 1px solid #dbe3ef;
+        border-radius: 10px;
+        padding: 8px;
+        background: #f8fafc;
+        display: grid;
+        grid-template-columns: 44px 1fr;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .bg-inline-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #334155;
+        grid-column: 1 / -1;
+      }
+
+      .bg-color-row {
+        display: grid;
+        align-items: center;
+        width: 100%;
+        min-width: 0;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        padding: 1px;
+      }
+
+      .bg-color-row input[type="color"] {
+        width: 100%;
+        min-width: 72px;
+        height: 36px;
+        padding: 2px;
+        border-radius: 8px;
+      }
+
+      .transparent-toggle.is-active,
+      .bg-color-row.is-active {
+        border-color: #dc2626;
+        box-shadow: 0 0 0 2px #fecaca;
+      }
+
+      .transparent-toggle {
+        position: relative;
+        width: 40px;
+        height: 36px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+
+      .transparent-toggle input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        margin: 0;
+      }
+
+      .checker-mini {
+        width: 22px;
+        height: 22px;
+        border-radius: 4px;
+        border: 1px solid #94a3b8;
+        background-color: #f8fafc;
+        background-image:
+          linear-gradient(45deg, #cbd5e1 25%, transparent 25%),
+          linear-gradient(-45deg, #cbd5e1 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #cbd5e1 75%),
+          linear-gradient(-45deg, transparent 75%, #cbd5e1 75%);
+        background-size: 8px 8px;
+        background-position: 0 0, 0 4px, 4px -4px, -4px 0;
+      }
+
+      .transparent-toggle input:checked + .checker-mini {
+        border-color: #2563eb;
+        box-shadow: inset 0 0 0 2px #93c5fd;
+      }
+
+      .transparent-toggle input:focus-visible + .checker-mini {
+        outline: 2px solid #93c5fd;
+        outline-offset: 1px;
+      }
+
+
       input[type="number"],
       input[type="text"],
       input[type="color"],
@@ -150,8 +256,15 @@
       }
 
       .theme-btn {
-        width: auto;
-        min-width: 124px;
+        width: 40px;
+        min-width: 40px;
+        height: 40px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        font-size: 18px;
       }
 
       button:disabled {
@@ -284,22 +397,55 @@
         padding: 0;
         list-style: none;
         display: grid;
-        gap: 6px;
+        gap: 4px;
         font-size: 13px;
+        overflow-x: auto;
       }
 
       .meta-item {
         border: 1px solid #d1d9e6;
         border-radius: 8px;
-        padding: 8px;
+        padding: 6px 8px;
         background: #f8fafc;
       }
 
-      .meta-top {
+      .meta-item.header {
+        background: #e2e8f0;
+        font-weight: 700;
+      }
+
+      .meta-row {
         display: flex;
-        justify-content: space-between;
-        gap: 10px;
+        gap: 8px;
         align-items: center;
+        min-width: 760px;
+      }
+
+      .meta-col {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .meta-col.name {
+        flex: 1 1 280px;
+      }
+
+      .meta-col.size,
+      .meta-col.frames,
+      .meta-col.duration {
+        flex: 0 0 90px;
+        text-align: right;
+      }
+
+      .meta-col.offset {
+        flex: 0 0 110px;
+      }
+
+      .meta-col.offset input[type="number"] {
+        width: 100%;
+        padding: 5px 6px;
+        font-size: 12px;
       }
 
       .drag-handle {
@@ -310,26 +456,51 @@
         white-space: nowrap;
       }
 
-      .offset-row {
-        margin-top: 8px;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-      }
-
-      .offset-row label {
-        font-size: 12px;
-      }
-
-      .offset-row input[type="number"] {
-        padding: 6px 8px;
-      }
-
       .preset-row {
         margin-top: 10px;
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
         gap: 8px;
+      }
+
+      .preset-card {
+        border: 1px solid #dbe3ef;
+        border-radius: 10px;
+        padding: 10px;
+        background: #f8fafc;
+        display: grid;
+        gap: 8px;
+      }
+
+      .preset-head {
+        font-size: 12px;
+        color: #475569;
+        font-weight: 600;
+      }
+
+      .preset-toolbar {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .icon-btn {
+        width: 36px;
+        min-width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        font-size: 16px;
+      }
+
+      .preset-save-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
       }
 
       details.option-box {
@@ -437,6 +608,42 @@
         color: #94a3b8;
       }
 
+      :root[data-theme='dark'] .bg-inline {
+        background: #0f172a;
+        border-color: #334155;
+      }
+
+      :root[data-theme='dark'] .transparent-toggle {
+        background: #0f172a;
+        border-color: #334155;
+      }
+
+      :root[data-theme='dark'] .transparent-toggle.is-active,
+      :root[data-theme='dark'] .bg-color-row.is-active {
+        border-color: #ef4444;
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35);
+      }
+
+      :root[data-theme='dark'] .checker-mini {
+        border-color: #64748b;
+        background-color: #0f172a;
+        background-image:
+          linear-gradient(45deg, #334155 25%, transparent 25%),
+          linear-gradient(-45deg, #334155 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #334155 75%),
+          linear-gradient(-45deg, transparent 75%, #334155 75%);
+      }
+
+      :root[data-theme='dark'] .compact-field {
+        background: #0f172a;
+        border-color: #334155;
+      }
+
+      :root[data-theme='dark'] .bg-inline-title,
+      :root[data-theme='dark'] .field-title {
+        color: #cbd5e1;
+      }
+
       :root[data-theme='dark'] .upload-zone {
         background: #0f1c34;
         border-color: #3b82f6;
@@ -490,7 +697,8 @@
 
       :root[data-theme='dark'] .card-note,
       :root[data-theme='dark'] details.option-box,
-      :root[data-theme='dark'] .meta-item {
+      :root[data-theme='dark'] .meta-item,
+      :root[data-theme='dark'] .preset-card {
         background: #0f172a;
         border-color: #334155;
         color: #cbd5e1;
@@ -589,7 +797,8 @@
 
         .card-note,
         details.option-box,
-        .meta-item {
+        .meta-item,
+        .preset-card {
           background: #0f172a;
           border-color: #334155;
           color: #cbd5e1;
@@ -693,6 +902,26 @@
           color: #334155;
         }
 
+        :root[data-theme='light'] .bg-inline {
+          background: #f8fafc;
+          border-color: #dbe3ef;
+        }
+
+        :root[data-theme='light'] .transparent-toggle {
+          background: #fff;
+          border-color: #cbd5e1;
+        }
+
+        :root[data-theme='light'] .compact-field {
+          background: #f8fafc;
+          border-color: #dbe3ef;
+        }
+
+        :root[data-theme='light'] .bg-inline-title,
+        :root[data-theme='light'] .field-title {
+          color: #475569;
+        }
+
         :root[data-theme='light'] .preview-wrap {
           background: #edf2f7;
           border-color: #a0aec0;
@@ -718,7 +947,9 @@
         }
 
         .theme-btn {
-          width: 100%;
+          width: 44px;
+          min-width: 44px;
+          height: 44px;
         }
 
         .controls,
@@ -733,6 +964,20 @@
 
         .preset-row {
           grid-template-columns: 1fr;
+        }
+
+        .preset-toolbar {
+          grid-template-columns: 1fr auto auto;
+        }
+
+        .preset-save-row {
+          grid-template-columns: 1fr;
+        }
+
+        .icon-btn {
+          width: 44px;
+          min-width: 44px;
+          height: 44px;
         }
 
         .action-row {
@@ -792,20 +1037,15 @@
       <section class="panel">
         <div class="title-row">
           <h1>アニメGIF並列メーカー</h1>
-          <button id="themeToggleBtn" type="button" class="btn-secondary theme-btn">テーマ: 自動</button>
+          <button id="themeToggleBtn" type="button" class="btn-secondary theme-btn" title="テーマ: 自動" aria-label="テーマ: 自動">🖥</button>
         </div>
         <p class="sub">複数のアニメGIFを並べて、1枚のアニメGIFとして出力します。</p>
-
-        <div class="card-note" aria-label="使い方ガイド">
-          <p><strong>3ステップ:</strong> 1) GIFを選択 2) レイアウト調整 3) 生成してダウンロード</p>
-          <p>アップロードしたGIFはブラウザ内のみで処理され、サーバーへ送信しません。</p>
-          <p>推奨ブラウザ: Edge / Chrome 最新版</p>
-        </div>
+        <p class="sub">アップロードしたGIFはブラウザ内のみで処理され、サーバーへ送信しません。</p>
 
         <div class="controls compact">
           <div id="uploadZone" class="upload-zone" aria-label="GIFアップロードエリア">
             <div class="upload-title">GIFファイルを追加</div>
-            <p class="upload-sub">ここにドラッグ&ドロップ、またはボタンから選択</p>
+            <p class="upload-sub">📥 ドラッグ&ドロップ / ファイル選択</p>
             <div class="upload-actions">
               <button id="selectFilesBtn" class="btn-secondary" type="button">ファイルを選択</button>
               <span id="fileSummary" class="file-summary">未選択</span>
@@ -813,24 +1053,30 @@
             <input id="gifInput" type="file" accept="image/gif" multiple hidden />
           </div>
 
-          <label>
-            列数
+          <label class="compact-field">
+            <span class="field-title">列数</span>
             <input id="columnsInput" type="number" min="1" max="30" value="5" />
           </label>
 
-          <label>
-            間隔(px)
+          <label class="compact-field">
+            <span class="field-title">間隔(px)</span>
             <input id="gapInput" type="number" min="0" max="100" value="0" />
           </label>
 
-          <label>
-            透明背景
-            <input id="transparentBgInput" type="checkbox" checked />
-          </label>
+          <div class="bg-inline" aria-label="背景設定">
+            <div class="bg-inline-title">背景</div>
+            <label class="transparent-toggle" title="透明背景" aria-label="透明背景">
+              <input id="transparentBgInput" type="checkbox" checked aria-label="透明背景" />
+              <span class="checker-mini" aria-hidden="true"></span>
+            </label>
+            <div id="bgColorRow" class="bg-color-row">
+              <input id="bgInput" type="color" value="#ffffff" aria-label="背景色" />
+            </div>
+          </div>
         </div>
 
         <div id="emptyState" class="empty-state">
-          まず GIF ファイルを選択してください。読み込み後にドラッグで配置調整し、最後に「GIFを生成」を押します。
+          まず GIF ファイルを選択してください。
         </div>
 
         <div class="action-row">
@@ -852,11 +1098,6 @@
           <div class="option-body">
             <div class="controls">
               <label>
-                背景色
-                <input id="bgInput" type="color" value="#ffffff" />
-              </label>
-
-              <label>
                 固定キャンバスサイズ
                 <input id="fixedSizeInput" type="checkbox" />
               </label>
@@ -877,17 +1118,18 @@
               </label>
             </div>
 
-            <div class="preset-row">
-              <input id="presetNameInput" type="text" placeholder="プリセット名" />
-              <button id="savePresetBtn" type="button">プリセット保存</button>
-              <select id="presetSelect">
-                <option value="">プリセットを選択</option>
-              </select>
-            </div>
-            <div class="preset-row" style="grid-template-columns: 1fr 1fr 1fr;">
-              <button id="loadPresetBtn" type="button">プリセット読込</button>
-              <button id="deletePresetBtn" type="button">プリセット削除</button>
-              <div></div>
+            <div class="preset-card">
+              <div class="preset-head">プリセット</div>
+              <div class="preset-toolbar">
+                <select id="presetSelect" aria-label="プリセットを選択">
+                  <option value="">プリセットを選択</option>
+                </select>
+                <button id="deletePresetBtn" class="btn-danger icon-btn" type="button" title="削除" aria-label="プリセット削除">🗑</button>
+                <button id="savePresetBtn" class="btn-secondary icon-btn" type="button" title="保存" aria-label="プリセット保存">💾</button>
+              </div>
+              <div class="preset-save-row">
+                <input id="presetNameInput" type="text" placeholder="保存名（例: 5列_透過_1080p）" />
+              </div>
             </div>
 
             <div class="card-note">
@@ -905,16 +1147,13 @@
           <h2>レイアウトプレビュー</h2>
           <button id="previewBtn" class="btn-secondary preview-icon-btn" type="button" title="プレビュー更新" aria-label="プレビュー更新">↻</button>
         </div>
-        <p class="preview-tip">画像をドラッグして位置を微調整、別の画像上へドロップで並び順を入れ替えできます。</p>
+        <p class="preview-tip">↔ 移動 / ⇄ 並び替え（ドラッグ&ドロップ）</p>
         <div id="previewWrap" class="preview-wrap">
           <canvas id="previewCanvas" width="640" height="360"></canvas>
         </div>
-        <div class="footer-note">
-          問い合わせ: <a href="https://x.com/HaruAyanokouzi" target="_blank" rel="noopener noreferrer">https://x.com/HaruAyanokouzi</a>
-        </div>
 
         <details class="option-box">
-          <summary>制限・更新情報・問い合わせ</summary>
+          <summary>⚠ 制限 / 🆕 更新 / ✉ 問合せ</summary>
           <div class="option-body">
             <div class="card-note">
               <p><strong>既知の制限</strong></p>
@@ -932,9 +1171,9 @@
             </div>
 
             <div class="card-note">
-              <p><strong>問い合わせ</strong></p>
-              <p><a href="https://x.com/HaruAyanokouzi" target="_blank" rel="noopener noreferrer">https://x.com/HaruAyanokouzi</a></p>
-              <p>不具合報告: <a href="https://github.com/harunyan22/anime-gif-generate/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a></p>
+              <p><strong>問い合わせ・不具合報告</strong></p>
+              <p>X: <a href="https://x.com/HaruAyanokouzi" target="_blank" rel="noopener noreferrer">https://x.com/HaruAyanokouzi</a></p>
+              <p><a href="https://github.com/harunyan22/anime-gif-generate/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a></p>
             </div>
           </div>
         </details>
