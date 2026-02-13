@@ -12,13 +12,21 @@ const savePresetBtn = document.getElementById('savePresetBtn');
 const presetSelect = document.getElementById('presetSelect');
 const loadPresetBtn = document.getElementById('loadPresetBtn');
 const deletePresetBtn = document.getElementById('deletePresetBtn');
+const themeToggleBtn = document.getElementById('themeToggleBtn');
 
 const previewBtn = document.getElementById('previewBtn');
 const generateBtn = document.getElementById('generateBtn');
+const cancelBtn = document.getElementById('cancelBtn');
 const statusEl = document.getElementById('status');
+const statusMainEl = document.getElementById('statusMain');
+const statusHintEl = document.getElementById('statusHint');
+const progressBarEl = document.getElementById('progressBar');
+const progressTextEl = document.getElementById('progressText');
 const metaList = document.getElementById('metaList');
 const downloadEl = document.getElementById('download');
 const debugLogEl = document.getElementById('debugLog');
+const emptyStateEl = document.getElementById('emptyState');
+const previewWrapEl = document.getElementById('previewWrap');
 const previewCanvas = document.getElementById('previewCanvas');
 const previewCtx = previewCanvas.getContext('2d');
 
@@ -31,6 +39,7 @@ const GIF_TRANSPARENT_KEY_HEX = '#00ff00';
 const GIF_TRANSPARENT_KEY_NUM = 0x00ff00;
 const GIF_QUALITY_FIXED = 1;
 const PRESET_STORAGE_KEY = 'gif-layout-presets-v1';
+const THEME_STORAGE_KEY = 'gif-layout-theme-v1';
 const RESOLUTION_WARN_PIXELS = 1920 * 1080 * 2;
 const WORKLOAD_WARN_PIXELS = 240_000_000;
 const MAX_COLUMNS = 30;
@@ -44,7 +53,11 @@ const state = {
   dragSourceIndex: null,
   presets: {},
   previewRuntime: null,
-  canvasDrag: null
+  canvasDrag: null,
+  canvasDragHoverIndex: null,
+  isGenerating: false,
+  cancelRequested: false,
+  currentGifEncoder: null
 };
 
 function logDebug(message, detail) {
@@ -59,9 +72,121 @@ function logDebug(message, detail) {
   }
 }
 
+function applyTheme(theme) {
+  const root = document.documentElement;
+  if (theme === 'light' || theme === 'dark') {
+    root.setAttribute('data-theme', theme);
+  } else {
+    root.removeAttribute('data-theme');
+  }
+
+  if (themeToggleBtn) {
+    const label = theme === 'light' ? 'ライト' : theme === 'dark' ? 'ダーク' : '自動';
+    themeToggleBtn.textContent = `テーマ: ${label}`;
+  }
+}
+
+function getSavedTheme() {
+  try {
+    const raw = localStorage.getItem(THEME_STORAGE_KEY);
+    if (raw === 'light' || raw === 'dark' || raw === 'auto') {
+      return raw;
+    }
+  } catch {
+    // noop
+  }
+  return 'auto';
+}
+
+function saveTheme(theme) {
+  localStorage.setItem(THEME_STORAGE_KEY, theme);
+}
+
+function cycleTheme() {
+  const current = getSavedTheme();
+  const next = current === 'auto' ? 'light' : current === 'light' ? 'dark' : 'auto';
+  saveTheme(next);
+  applyTheme(next);
+}
+
 function setStatus(text, isError = false) {
-  statusEl.textContent = text;
+  let mainText = text;
+  let hintText = '';
+
+  if (typeof text === 'string' && text.includes(' / ')) {
+    const parts = text.split(' / ');
+    mainText = parts[0];
+    hintText = parts.slice(1).join(' / ');
+  }
+
+  if (statusMainEl) {
+    statusMainEl.textContent = mainText;
+  } else {
+    statusEl.textContent = mainText;
+  }
+
+  if (statusHintEl) {
+    statusHintEl.textContent = hintText;
+  }
+
   statusEl.style.color = isError ? '#c53030' : '#2b6cb0';
+}
+
+function setProgress(percent, text = '') {
+  const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+  if (progressBarEl) {
+    progressBarEl.style.width = `${clamped}%`;
+  }
+  if (progressTextEl) {
+    progressTextEl.textContent = text;
+  }
+}
+
+function resetProgress() {
+  setProgress(0, '');
+}
+
+function syncEmptyState() {
+  if (!emptyStateEl) {
+    return;
+  }
+
+  emptyStateEl.classList.toggle('hidden', state.sources.length > 0);
+}
+
+function setGeneratingState(isGenerating) {
+  state.isGenerating = isGenerating;
+  generateBtn.disabled = isGenerating || state.sources.length === 0;
+  cancelBtn.disabled = !isGenerating;
+}
+
+function getWorkloadLevel(metrics, totalFrames) {
+  const workload = metrics.width * metrics.height * totalFrames;
+  if (workload >= 500_000_000) {
+    return '重い';
+  }
+  if (workload >= 180_000_000) {
+    return 'やや重い';
+  }
+  return '普通';
+}
+
+function getErrorActionHint(message) {
+  const text = String(message || '').toLowerCase();
+
+  if (text.includes('worker')) {
+    return '対処: ページ再読み込み後に再試行してください。改善しない場合はブラウザをEdge/Chrome最新版に更新してください。';
+  }
+
+  if (text.includes('memory') || text.includes('allocation') || text.includes('out of')) {
+    return '対処: 出力サイズ・列数・FPSを下げて再試行してください。';
+  }
+
+  if (text.includes('aborted') || text.includes('中断')) {
+    return '対処: 必要に応じて設定を見直して再度生成してください。';
+  }
+
+  return '対処: 列数や出力サイズを下げて再試行し、改善しない場合は診断ログを共有してください。';
 }
 
 function clearDownloadLink() {
@@ -126,6 +251,10 @@ function syncControlEnabledStates() {
   bgInput.disabled = transparentBgInput.checked;
   canvasWidthInput.disabled = !fixedSizeInput.checked;
   canvasHeightInput.disabled = !fixedSizeInput.checked;
+
+  if (previewWrapEl) {
+    previewWrapEl.classList.toggle('checkerboard', transparentBgInput.checked);
+  }
 }
 
 function paintBackground(ctx, width, height, bgColor, transparent, forGifOutput = false) {
@@ -260,7 +389,7 @@ function drawFrameOnContext(ctx, source, frameIndex, x, y, drawScale = 1) {
   ctx.drawImage(source.blitCanvas, Math.round(x), Math.round(y), drawWidth, drawHeight);
 }
 
-function getCanvasPointFromMouseEvent(event) {
+function getCanvasPointFromPointerEvent(event) {
   const rect = previewCanvas.getBoundingClientRect();
   const scaleX = previewCanvas.width / rect.width;
   const scaleY = previewCanvas.height / rect.height;
@@ -628,11 +757,14 @@ function prepareSourceBlitBuffers() {
 async function loadGifs(files) {
   clearDownloadLink();
   stopPreviewAnimation();
+  resetProgress();
   state.sources = [];
   metaList.innerHTML = '';
+  syncEmptyState();
 
   if (!files?.length) {
     generateBtn.disabled = true;
+    cancelBtn.disabled = true;
     setStatus('GIFファイルを選択してください。', true);
     previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
     return;
@@ -642,6 +774,7 @@ async function loadGifs(files) {
     setStatus('このブラウザはImageDecoderに未対応です。Edge/Chrome最新版を使用してください。', true);
     logDebug('ImageDecoder未対応', { userAgent: navigator.userAgent });
     generateBtn.disabled = true;
+    cancelBtn.disabled = true;
     return;
   }
 
@@ -668,6 +801,7 @@ async function loadGifs(files) {
   if (!parsedSources.length) {
     setStatus('有効なGIFを読み込めませんでした。', true);
     generateBtn.disabled = true;
+    cancelBtn.disabled = true;
     return;
   }
 
@@ -680,6 +814,8 @@ async function loadGifs(files) {
 
   renderMeta();
   generateBtn.disabled = false;
+  cancelBtn.disabled = true;
+  syncEmptyState();
   updatePreview();
 }
 
@@ -689,8 +825,11 @@ function updatePreview() {
   if (!state.sources.length) {
     previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
     setStatus('先にGIFを読み込んでください。', true);
+    syncEmptyState();
     return;
   }
+
+  syncEmptyState();
 
   const settings = getCurrentSettings();
   const metrics = getLayoutMetrics(state.sources, settings);
@@ -739,6 +878,29 @@ function updatePreview() {
     });
 
     runtime.itemRects = itemRects;
+
+    if (state.canvasDrag) {
+      const activeRect = itemRects.find((item) => item.index === state.canvasDrag.sourceIndex);
+      if (activeRect) {
+        previewCtx.save();
+        previewCtx.strokeStyle = '#2563eb';
+        previewCtx.lineWidth = 2;
+        previewCtx.strokeRect(activeRect.x, activeRect.y, activeRect.width, activeRect.height);
+        previewCtx.restore();
+      }
+
+      if (state.canvasDragHoverIndex !== null && state.canvasDragHoverIndex !== state.canvasDrag.sourceIndex) {
+        const hoverRect = itemRects.find((item) => item.index === state.canvasDragHoverIndex);
+        if (hoverRect) {
+          previewCtx.save();
+          previewCtx.strokeStyle = '#f59e0b';
+          previewCtx.setLineDash([6, 4]);
+          previewCtx.lineWidth = 2;
+          previewCtx.strokeRect(hoverRect.x, hoverRect.y, hoverRect.width, hoverRect.height);
+          previewCtx.restore();
+        }
+      }
+    }
   };
 
   runtime.drawTick = drawTick;
@@ -752,7 +914,7 @@ function handlePreviewMouseDown(event) {
     return;
   }
 
-  const point = getCanvasPointFromMouseEvent(event);
+  const point = getCanvasPointFromPointerEvent(event);
   const hit = findPreviewHit(point);
   if (!hit) {
     return;
@@ -767,13 +929,17 @@ function handlePreviewMouseDown(event) {
     moved: false
   };
 
+  if (previewCanvas.setPointerCapture && typeof event.pointerId !== 'undefined') {
+    previewCanvas.setPointerCapture(event.pointerId);
+  }
+
   previewCanvas.style.cursor = 'grabbing';
   event.preventDefault();
 }
 
 function handlePreviewMouseMove(event) {
   if (!state.canvasDrag) {
-    const point = getCanvasPointFromMouseEvent(event);
+    const point = getCanvasPointFromPointerEvent(event);
     const hit = findPreviewHit(point);
     previewCanvas.style.cursor = hit ? 'grab' : 'default';
     return;
@@ -785,9 +951,11 @@ function handlePreviewMouseMove(event) {
     return;
   }
 
-  const point = getCanvasPointFromMouseEvent(event);
+  const point = getCanvasPointFromPointerEvent(event);
   const dx = point.x - drag.startPoint.x;
   const dy = point.y - drag.startPoint.y;
+  const hoverHit = findPreviewHit(point);
+  state.canvasDragHoverIndex = hoverHit ? hoverHit.index : null;
 
   if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
     drag.moved = true;
@@ -808,7 +976,7 @@ function handlePreviewMouseUp(event) {
 
   const drag = state.canvasDrag;
   const sourceIndex = drag.sourceIndex;
-  const point = getCanvasPointFromMouseEvent(event);
+  const point = getCanvasPointFromPointerEvent(event);
   const dropHit = findPreviewHit(point);
 
   if (dropHit && dropHit.index !== sourceIndex && drag.moved) {
@@ -823,7 +991,16 @@ function handlePreviewMouseUp(event) {
   }
 
   state.canvasDrag = null;
+  state.canvasDragHoverIndex = null;
   previewCanvas.style.cursor = 'default';
+
+  if (previewCanvas.releasePointerCapture && typeof event.pointerId !== 'undefined') {
+    try {
+      previewCanvas.releasePointerCapture(event.pointerId);
+    } catch {
+      // noop
+    }
+  }
 }
 
 async function generateCombinedGif() {
@@ -839,6 +1016,7 @@ async function generateCombinedGif() {
   }
 
   clearDownloadLink();
+  resetProgress();
 
   const settings = getCurrentSettings();
   const metrics = getLayoutMetrics(state.sources, settings);
@@ -850,6 +1028,7 @@ async function generateCombinedGif() {
   const frameDelay = Math.max(10, Math.round(1000 / settings.fps));
   const maxDuration = Math.max(...state.sources.map((source) => source.durationMs));
   const totalFrames = Math.max(1, Math.ceil(maxDuration / frameDelay));
+  const workloadLevel = getWorkloadLevel(metrics, totalFrames);
 
   const warningMessage = getResolutionWarningMessage(metrics, totalFrames);
   const columnsWarning = getColumnsLimitWarningMessage();
@@ -860,12 +1039,17 @@ async function generateCombinedGif() {
     setStatus(warningMessage, true);
   }
 
-  setStatus(`最適化準備中... (0/${totalFrames})`);
+  setStatus(`最適化準備中... (0/${totalFrames}) / 負荷目安: ${workloadLevel}`);
+  setProgress(0, `負荷目安: ${workloadLevel}`);
 
   const optimizedFrames = [];
   let removedFrames = 0;
 
   for (let frameNumber = 0; frameNumber < totalFrames; frameNumber += 1) {
+    if (state.cancelRequested) {
+      throw new Error('生成が中断されました。');
+    }
+
     const timeMs = frameNumber * frameDelay;
 
     paintBackground(outputCtx, metrics.width, metrics.height, settings.bgColor, settings.transparentBg, true);
@@ -894,6 +1078,8 @@ async function generateCombinedGif() {
 
     if (frameNumber % 5 === 0 || frameNumber === totalFrames - 1) {
       setStatus(`最適化中... (${frameNumber + 1}/${totalFrames})`);
+      const phasePercent = ((frameNumber + 1) / totalFrames) * 35;
+      setProgress(phasePercent, `最適化 ${frameNumber + 1}/${totalFrames}`);
     }
   }
 
@@ -917,6 +1103,7 @@ async function generateCombinedGif() {
     workerScript,
     transparent: settings.transparentBg ? GIF_TRANSPARENT_KEY_NUM : null
   });
+  state.currentGifEncoder = gif;
 
   logDebug('GIFエンコーダ設定', {
     protocol: location.protocol,
@@ -939,12 +1126,14 @@ async function generateCombinedGif() {
       const etaSec = progress > 0 ? Math.max(0, Math.round((elapsedSec * (1 - progress)) / progress)) : null;
       const etaText = etaSec === null ? '' : ` / 残り約${etaSec}秒`;
       setStatus(`出力GIFを生成中... ${percent}%${etaText}`);
+      setProgress(35 + progress * 65, `生成 ${percent}%${etaText.replace(' / ', ' ')}`);
     });
     gif.on('finished', resolve);
     gif.on('abort', () => reject(new Error('GIF生成が中断されました。')));
     gif.on('error', (error) => reject(error instanceof Error ? error : new Error(String(error))));
     gif.render();
   });
+  state.currentGifEncoder = null;
 
   state.outputUrl = URL.createObjectURL(blob);
 
@@ -956,6 +1145,7 @@ async function generateCombinedGif() {
   downloadEl.innerHTML = '';
   downloadEl.appendChild(link);
   setStatus(`GIF生成が完了しました。最適化: ${removedFrames}フレーム削減`);
+  setProgress(100, '完了');
 }
 
 function loadPresetsFromStorage() {
@@ -1055,7 +1245,7 @@ gifInput.addEventListener('change', async (event) => {
     await loadGifs(files);
   } catch (error) {
     logDebug('読み込み例外', { message: error.message });
-    setStatus(`読み込みエラー: ${error.message}`, true);
+    setStatus(`読み込みエラー: ${error.message} / ${getErrorActionHint(error.message)}`, true);
     generateBtn.disabled = true;
   }
 });
@@ -1064,26 +1254,50 @@ previewBtn.addEventListener('click', () => {
   updatePreview();
 });
 
-previewCanvas.addEventListener('mousedown', handlePreviewMouseDown);
-window.addEventListener('mousemove', handlePreviewMouseMove);
-window.addEventListener('mouseup', handlePreviewMouseUp);
+previewCanvas.addEventListener('pointerdown', handlePreviewMouseDown);
+previewCanvas.addEventListener('pointermove', handlePreviewMouseMove);
+previewCanvas.addEventListener('pointerup', handlePreviewMouseUp);
+previewCanvas.addEventListener('pointercancel', handlePreviewMouseUp);
 
 generateBtn.addEventListener('click', async () => {
-  generateBtn.disabled = true;
+  setGeneratingState(true);
+  state.cancelRequested = false;
+  resetProgress();
   try {
     logDebug('GIF生成開始');
     await generateCombinedGif();
   } catch (error) {
     logDebug('生成例外', { message: error.message });
-    setStatus(`生成エラー: ${error.message}`, true);
+    setStatus(`生成エラー: ${error.message} / ${getErrorActionHint(error.message)}`, true);
   } finally {
-    generateBtn.disabled = false;
+    state.cancelRequested = false;
+    state.currentGifEncoder = null;
+    setGeneratingState(false);
   }
+});
+
+cancelBtn.addEventListener('click', () => {
+  if (!state.isGenerating) {
+    return;
+  }
+
+  state.cancelRequested = true;
+  if (state.currentGifEncoder && typeof state.currentGifEncoder.abort === 'function') {
+    try {
+      state.currentGifEncoder.abort();
+    } catch {
+      // noop
+    }
+  }
+
+  setStatus('生成中断を要求しました。停止まで数秒かかる場合があります。', true);
+  setProgress(0, '中断処理中...');
 });
 
 savePresetBtn.addEventListener('click', savePreset);
 loadPresetBtn.addEventListener('click', loadPreset);
 deletePresetBtn.addEventListener('click', deletePreset);
+themeToggleBtn.addEventListener('click', cycleTheme);
 
 window.addEventListener('error', (event) => {
   logDebug('window error', {
@@ -1101,10 +1315,13 @@ window.addEventListener('beforeunload', () => {
 });
 
 (() => {
+  applyTheme(getSavedTheme());
   syncControlEnabledStates();
+  syncEmptyState();
   bindSettingAutoPreview();
   loadPresetsFromStorage();
   refreshPresetSelect();
+  setGeneratingState(false);
 
   logDebug('アプリ初期化', {
     userAgent: navigator.userAgent,

@@ -6,7 +6,7 @@
     <title>アニメGIF並列メーカー</title>
     <style>
       :root {
-        color-scheme: light;
+        color-scheme: light dark;
         font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
       }
 
@@ -33,7 +33,18 @@
         background: #fff;
         border: 1px solid #dce3ef;
         border-radius: 12px;
-        padding: 16px;
+        padding: 18px;
+      }
+
+      .title-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .title-row h1 {
+        margin: 0;
       }
 
       h1 {
@@ -87,16 +98,79 @@
         cursor: pointer;
       }
 
+      .btn-secondary {
+        background: #e2e8f0;
+        color: #1f2937;
+        border: 1px solid #cbd5e1;
+      }
+
+      .btn-danger {
+        background: #fee2e2;
+        color: #7f1d1d;
+        border: 1px solid #fecaca;
+      }
+
+      .theme-btn {
+        width: auto;
+        min-width: 124px;
+      }
+
       button:disabled {
         background: #93a5c9;
         cursor: not-allowed;
       }
 
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      summary:focus-visible,
+      a:focus-visible {
+        outline: 3px solid #93c5fd;
+        outline-offset: 2px;
+      }
+
       .action-row {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr 1fr 1fr;
         gap: 12px;
         margin-top: 12px;
+      }
+
+      .card-note {
+        margin-top: 12px;
+        border: 1px solid #dce3ef;
+        border-radius: 10px;
+        background: #f8fafc;
+        padding: 12px;
+        font-size: 13px;
+        color: #334155;
+      }
+
+      .empty-state {
+        margin-top: 12px;
+        border: 1px solid #bfdbfe;
+        background: #eff6ff;
+        color: #1e3a8a;
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 13px;
+      }
+
+      .empty-state.hidden {
+        display: none;
+      }
+
+      .card-note p {
+        margin: 0 0 6px;
+      }
+
+      .card-note p:last-child {
+        margin-bottom: 0;
+      }
+
+      .guide-list {
+        margin: 8px 0 0;
+        padding-left: 18px;
       }
 
       .status {
@@ -104,6 +178,41 @@
         min-height: 22px;
         font-size: 13px;
         color: #2b6cb0;
+      }
+
+      .status-main {
+        font-weight: 600;
+      }
+
+      .status-hint {
+        margin-top: 4px;
+        color: #475569;
+        font-size: 12px;
+      }
+
+      .progress-wrap {
+        margin-top: 8px;
+      }
+
+      .progress-track {
+        width: 100%;
+        height: 8px;
+        border-radius: 999px;
+        background: #e2e8f0;
+        overflow: hidden;
+      }
+
+      .progress-bar {
+        width: 0%;
+        height: 100%;
+        background: #2563eb;
+        transition: width 0.2s ease;
+      }
+
+      .progress-text {
+        margin-top: 4px;
+        font-size: 12px;
+        color: #475569;
       }
 
       .meta-list {
@@ -175,7 +284,9 @@
       }
 
       .option-body {
-        margin-top: 10px;
+        margin-top: 12px;
+        display: grid;
+        gap: 10px;
       }
 
       .preset-row input,
@@ -192,6 +303,17 @@
         padding: 12px;
       }
 
+      .preview-wrap.checkerboard {
+        background-color: #f1f5f9;
+        background-image:
+          linear-gradient(45deg, #dbe3ef 25%, transparent 25%),
+          linear-gradient(-45deg, #dbe3ef 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #dbe3ef 75%),
+          linear-gradient(-45deg, transparent 75%, #dbe3ef 75%);
+        background-size: 16px 16px;
+        background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+      }
+
       .preview-tip {
         margin: 0 0 8px;
         font-size: 12px;
@@ -202,6 +324,10 @@
         display: block;
         max-width: 100%;
         height: auto;
+      }
+
+      #previewCanvas {
+        touch-action: none;
       }
 
       .download a {
@@ -216,6 +342,277 @@
         font-size: 14px;
       }
 
+      .footer-note {
+        margin-top: 14px;
+        padding-top: 10px;
+        border-top: 1px solid #e2e8f0;
+        font-size: 12px;
+        color: #475569;
+      }
+
+      :root[data-theme='dark'] body {
+        background: #0b1220;
+        color: #e5e7eb;
+      }
+
+      :root[data-theme='dark'] .panel {
+        background: #111827;
+        border-color: #243042;
+      }
+
+      :root[data-theme='dark'] .sub,
+      :root[data-theme='dark'] label,
+      :root[data-theme='dark'] .preview-tip,
+      :root[data-theme='dark'] .footer-note,
+      :root[data-theme='dark'] .status-hint,
+      :root[data-theme='dark'] .progress-text {
+        color: #94a3b8;
+      }
+
+      :root[data-theme='dark'] input[type="number"],
+      :root[data-theme='dark'] input[type="text"],
+      :root[data-theme='dark'] input[type="color"],
+      :root[data-theme='dark'] input[type="file"],
+      :root[data-theme='dark'] select,
+      :root[data-theme='dark'] button {
+        background: #0f172a;
+        border-color: #334155;
+        color: #e2e8f0;
+      }
+
+      :root[data-theme='dark'] button {
+        background: #2563eb;
+        color: #eff6ff;
+      }
+
+      :root[data-theme='dark'] .btn-secondary {
+        background: #1f2937;
+        color: #e5e7eb;
+        border-color: #334155;
+      }
+
+      :root[data-theme='dark'] .btn-danger {
+        background: #3f1d1d;
+        color: #fecaca;
+        border-color: #7f1d1d;
+      }
+
+      :root[data-theme='dark'] button:disabled {
+        background: #334155;
+        color: #94a3b8;
+      }
+
+      :root[data-theme='dark'] .card-note,
+      :root[data-theme='dark'] details.option-box,
+      :root[data-theme='dark'] .meta-item {
+        background: #0f172a;
+        border-color: #334155;
+        color: #cbd5e1;
+      }
+
+      :root[data-theme='dark'] .empty-state {
+        background: #172554;
+        border-color: #1d4ed8;
+        color: #dbeafe;
+      }
+
+      :root[data-theme='dark'] .preview-wrap {
+        background: #111827;
+        border-color: #334155;
+      }
+
+      :root[data-theme='dark'] .preview-wrap.checkerboard {
+        background-color: #111827;
+        background-image:
+          linear-gradient(45deg, #1f2937 25%, transparent 25%),
+          linear-gradient(-45deg, #1f2937 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #1f2937 75%),
+          linear-gradient(-45deg, transparent 75%, #1f2937 75%);
+      }
+
+      :root[data-theme='dark'] .progress-track {
+        background: #334155;
+      }
+
+      :root[data-theme='dark'] .download a {
+        background: #1e3a8a;
+        border-color: #2563eb;
+        color: #dbeafe;
+      }
+
+      :root[data-theme='dark'] .footer-note {
+        border-top-color: #334155;
+      }
+
+      :root[data-theme='dark'] a {
+        color: #93c5fd;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #0b1220;
+          color: #e5e7eb;
+        }
+
+        .panel {
+          background: #111827;
+          border-color: #243042;
+        }
+
+        .sub,
+        label,
+        .preview-tip,
+        .footer-note,
+        .status-hint,
+        .progress-text {
+          color: #94a3b8;
+        }
+
+        input[type="number"],
+        input[type="text"],
+        input[type="color"],
+        input[type="file"],
+        select,
+        button {
+          background: #0f172a;
+          border-color: #334155;
+          color: #e2e8f0;
+        }
+
+        button {
+          background: #2563eb;
+          color: #eff6ff;
+        }
+
+        .btn-secondary {
+          background: #1f2937;
+          color: #e5e7eb;
+          border-color: #334155;
+        }
+
+        .btn-danger {
+          background: #3f1d1d;
+          color: #fecaca;
+          border-color: #7f1d1d;
+        }
+
+        button:disabled {
+          background: #334155;
+          color: #94a3b8;
+        }
+
+        .card-note,
+        details.option-box,
+        .meta-item {
+          background: #0f172a;
+          border-color: #334155;
+          color: #cbd5e1;
+        }
+
+        .empty-state {
+          background: #172554;
+          border-color: #1d4ed8;
+          color: #dbeafe;
+        }
+
+        .preview-wrap {
+          background: #111827;
+          border-color: #334155;
+        }
+
+        .preview-wrap.checkerboard {
+          background-color: #111827;
+          background-image:
+            linear-gradient(45deg, #1f2937 25%, transparent 25%),
+            linear-gradient(-45deg, #1f2937 25%, transparent 25%),
+            linear-gradient(45deg, transparent 75%, #1f2937 75%),
+            linear-gradient(-45deg, transparent 75%, #1f2937 75%);
+        }
+
+        .progress-track {
+          background: #334155;
+        }
+
+        .download a {
+          background: #1e3a8a;
+          border-color: #2563eb;
+          color: #dbeafe;
+        }
+
+        .footer-note {
+          border-top-color: #334155;
+        }
+
+        a {
+          color: #93c5fd;
+        }
+
+        :root[data-theme='light'] body {
+          background: #f5f7fb;
+          color: #1d1d1f;
+        }
+
+        :root[data-theme='light'] .panel {
+          background: #fff;
+          border-color: #dce3ef;
+        }
+
+        :root[data-theme='light'] .sub,
+        :root[data-theme='light'] label,
+        :root[data-theme='light'] .preview-tip,
+        :root[data-theme='light'] .footer-note,
+        :root[data-theme='light'] .status-hint,
+        :root[data-theme='light'] .progress-text {
+          color: #4a5568;
+        }
+
+        :root[data-theme='light'] input[type="number"],
+        :root[data-theme='light'] input[type="text"],
+        :root[data-theme='light'] input[type="color"],
+        :root[data-theme='light'] input[type="file"],
+        :root[data-theme='light'] select,
+        :root[data-theme='light'] button {
+          background: #fff;
+          border-color: #cbd5e0;
+          color: #1d1d1f;
+        }
+
+        :root[data-theme='light'] button {
+          background: #2563eb;
+          color: #fff;
+        }
+
+        :root[data-theme='light'] .btn-secondary {
+          background: #e2e8f0;
+          color: #1f2937;
+          border-color: #cbd5e1;
+        }
+
+        :root[data-theme='light'] .btn-danger {
+          background: #fee2e2;
+          color: #7f1d1d;
+          border-color: #fecaca;
+        }
+
+        :root[data-theme='light'] button:disabled {
+          background: #93a5c9;
+          color: #1d1d1f;
+        }
+
+        :root[data-theme='light'] .card-note,
+        :root[data-theme='light'] details.option-box,
+        :root[data-theme='light'] .meta-item {
+          background: #f8fafc;
+          border-color: #dce3ef;
+          color: #334155;
+        }
+
+        :root[data-theme='light'] .preview-wrap {
+          background: #edf2f7;
+          border-color: #a0aec0;
+        }
+      }
+
       @media (max-width: 900px) {
         body {
           padding: 14px;
@@ -227,6 +624,15 @@
 
         .panel {
           padding: 12px;
+        }
+
+        .title-row {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .theme-btn {
+          width: 100%;
         }
 
         .controls,
@@ -261,6 +667,10 @@
         .preview-wrap {
           padding: 8px;
         }
+
+        .footer-note {
+          font-size: 11px;
+        }
       }
 
       @media (max-width: 480px) {
@@ -279,8 +689,17 @@
   <body>
     <main class="container">
       <section class="panel">
-        <h1>アニメGIF並列メーカー</h1>
+        <div class="title-row">
+          <h1>アニメGIF並列メーカー</h1>
+          <button id="themeToggleBtn" type="button" class="btn-secondary theme-btn">テーマ: 自動</button>
+        </div>
         <p class="sub">複数のアニメGIFを並べて、1枚のアニメGIFとして出力します。</p>
+
+        <div class="card-note" aria-label="使い方ガイド">
+          <p><strong>3ステップ:</strong> 1) GIFを選択 2) レイアウト調整 3) 生成してダウンロード</p>
+          <p>アップロードしたGIFはブラウザ内のみで処理され、サーバーへ送信しません。</p>
+          <p>推奨ブラウザ: Edge / Chrome 最新版</p>
+        </div>
 
         <div class="controls compact">
           <label>
@@ -304,12 +723,24 @@
           </label>
         </div>
 
-        <div class="action-row">
-          <button id="previewBtn" type="button">プレビュー更新</button>
-          <button id="generateBtn" type="button" disabled>GIFを生成</button>
+        <div id="emptyState" class="empty-state">
+          まず GIF ファイルを選択してください。読み込み後にドラッグで配置調整し、最後に「GIFを生成」を押します。
         </div>
 
-        <div id="status" class="status"></div>
+        <div class="action-row">
+          <button id="previewBtn" class="btn-secondary" type="button">プレビュー更新</button>
+          <button id="generateBtn" type="button" disabled>GIFを生成</button>
+          <button id="cancelBtn" class="btn-danger" type="button" disabled>生成を中断</button>
+        </div>
+
+        <div id="status" class="status" role="status" aria-live="polite">
+          <div id="statusMain" class="status-main"></div>
+          <div id="statusHint" class="status-hint"></div>
+        </div>
+        <div class="progress-wrap" aria-hidden="true">
+          <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+          <div id="progressText" class="progress-text"></div>
+        </div>
         <div id="download" class="download"></div>
 
         <details class="option-box">
@@ -355,7 +786,37 @@
               <div></div>
             </div>
 
+            <div class="card-note">
+              <p>プリセットには、列数・間隔・背景設定・固定サイズ・出力FPS が保存されます。</p>
+            </div>
+
             <ul id="metaList" class="meta-list"></ul>
+          </div>
+        </details>
+
+        <details class="option-box">
+          <summary>制限・更新情報・問い合わせ</summary>
+          <div class="option-body">
+            <div class="card-note">
+              <p><strong>既知の制限</strong></p>
+              <ul class="guide-list">
+                <li>高解像度・大量フレームでは生成に時間がかかります。</li>
+                <li>端末メモリ不足時は生成に失敗することがあります。</li>
+              </ul>
+            </div>
+
+            <div class="card-note">
+              <p><strong>更新履歴（簡易）</strong></p>
+              <ul class="guide-list">
+                <li>2026-02-13: モバイル最適化、固定キャンバス自動縮小、公開安定化対応。</li>
+              </ul>
+            </div>
+
+            <div class="card-note">
+              <p><strong>問い合わせ</strong></p>
+              <p><a href="https://x.com/HaruAyanokouzi" target="_blank" rel="noopener noreferrer">https://x.com/HaruAyanokouzi</a></p>
+              <p>不具合報告: <a href="https://github.com/harunyan22/anime-gif-generate/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a></p>
+            </div>
           </div>
         </details>
 
@@ -368,13 +829,19 @@
       <section class="panel">
         <h2 style="margin:0 0 8px;font-size:18px;">レイアウトプレビュー</h2>
         <p class="preview-tip">画像をドラッグして位置を微調整、別の画像上へドロップで並び順を入れ替えできます。</p>
-        <div class="preview-wrap">
+        <div id="previewWrap" class="preview-wrap">
           <canvas id="previewCanvas" width="640" height="360"></canvas>
+        </div>
+        <div class="footer-note">
+          問い合わせ: <a href="https://x.com/HaruAyanokouzi" target="_blank" rel="noopener noreferrer">https://x.com/HaruAyanokouzi</a>
         </div>
       </section>
     </main>
 
-    <script id="gifjsScript" src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+    <noscript>
+      <p style="padding:12px;background:#fee2e2;color:#7f1d1d;border-radius:8px;max-width:1080px;margin:0 auto 12px;">このアプリの利用にはJavaScriptを有効化してください。</p>
+    </noscript>
+    <script id="gifjsScript" src="./gif.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
